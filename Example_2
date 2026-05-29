@@ -1,0 +1,88 @@
+%% Example # 6.7: Exact symbolic propagation over a diagonal matrix coefficient ring
+
+clear; clc;
+
+%% Force exact symbolic output
+sympref('FloatingPointOutput', false);
+
+%% Symbols
+syms x t
+I = sym('1i');
+
+%% Parameters
+M2 = 10;
+Nt = floor(M2/2);
+
+%% Zero matrix in S = Diag_3(Q(i))
+Z = sym(zeros(3));
+
+%% Initial coefficients a_{0,m2}
+a0 = cell(1, M2+1);
+for m2 = 0:M2
+    a0{m2+1} = Z;
+end
+
+a0{0+1}  = diag([sym(1), sym(0), sym(2)]);
+a0{5+1}  = diag([sym(0), sym(1), sym(0)]);
+a0{10+1} = diag([sym(0), sym(0), I]);
+
+%% Build initial datum psi_0(x)
+psi0 = Z;
+for m2 = 0:M2
+    psi0 = psi0 + a0{m2+1}*x^m2;
+end
+
+disp('Initial datum psi_0(x):')
+disp(psi0)
+
+disp('Nonzero initial coefficients:')
+for m2 = 0:M2
+    A = a0{m2+1};
+    if ~all(all(isAlways(A == Z)))
+        fprintf('a_{0,%d} = \n', m2);
+        disp(A)
+    end
+end
+
+%% Symbolic propagation
+a = cell(Nt+1, M2+1);
+for m1 = 0:Nt
+    for m2 = 0:M2
+        a{m1+1, m2+1} = Z;
+    end
+end
+
+for m2 = 0:M2
+    a{1, m2+1} = a0{m2+1};
+end
+
+psi = psi0;
+
+for m1 = 1:Nt
+    for m2 = 0:(M2 - 2*m1)
+        coeff = I^m1 * sym(factorial(m2 + 2*m1)) / ...
+               (sym(factorial(m1))*sym(factorial(m2)));
+
+        a{m1+1, m2+1} = simplify(coeff * a0{m2 + 2*m1 + 1});
+        psi = psi + a{m1+1, m2+1} * t^m1 * x^m2;
+    end
+end
+
+psi = simplify(psi);
+
+disp(' ')
+disp('Nonzero propagated coefficients:')
+for m1 = 1:Nt
+    for m2 = 0:M2
+        A = simplify(a{m1+1, m2+1});
+        if ~all(all(isAlways(A == Z)))
+            fprintf('a_{%d,%d} = \n', m1, m2);
+            disp(A)
+        end
+    end
+end
+
+disp(' ')
+disp('Exact symbolic solution psi(x,t):')
+disp(psi)
+
