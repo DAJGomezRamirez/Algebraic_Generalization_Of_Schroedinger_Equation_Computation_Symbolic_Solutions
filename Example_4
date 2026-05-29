@@ -1,0 +1,106 @@
+%% Example # 6.9: Symbolic propagation with nilpotent corrections
+
+clear; clc;
+
+%% Exact symbolic output
+sympref('FloatingPointOutput', false);
+
+%% Symbols
+syms x t ep
+I = sym('1i');
+
+%% Ring S_3 = Q(i)[ep]/(ep^3)
+Nnil = 3;   % ep^3 = 0
+
+%% Parameters
+M2 = 2;
+Nt = 2;
+Mx = M2 + 2*Nt;   % maximum spatial degree needed up to time layer Nt
+
+%% Helper for reduction modulo ep^3
+modEp = @(expr) truncate_ep(expr, ep, Nnil);
+
+%% Initial coefficients for psi_0(x)=1+ep*x+ep^2*x^2
+a = sym(zeros(Nt+1, Mx+1));
+
+a(1,1) = sym(1);     % a_{0,0}
+a(1,2) = ep;         % a_{0,1}
+a(1,3) = ep^2;       % a_{0,2}
+
+%% Initial datum
+psi0 = sym(0);
+for m = 0:Mx
+    psi0 = psi0 + a(1,m+1)*x^m;
+end
+psi0 = modEp(expand(psi0));
+
+disp('Initial datum psi_0(x) =')
+disp(psi0)
+
+disp('Nonzero initial coefficients:')
+for m = 0:Mx
+    if ~isequal(simplify(a(1,m+1)), sym(0))
+        fprintf('a_{0,%d} = ', m);
+        disp(a(1,m+1))
+    end
+end
+
+%% Symbolic propagation
+
+
+for n = 0:Nt-1
+    max_prev = M2 + 2*n;
+    max_curr = M2 + 2*(n+1);
+
+    for m = 0:max_curr
+        term_plus  = sym(0);
+        term_minus = sym(0);
+
+        if m+2 <= max_prev
+            term_plus = sym(m+2)*sym(m+1)*a(n+1,m+3);
+        end
+
+        if m >= 2
+            term_minus = a(n+1,m-1);
+        end
+
+        a(n+2,m+1) = modEp( simplify( I*(term_plus - term_minus)/sym(n+1) ) );
+    end
+end
+
+disp(' ')
+disp('Nonzero propagated coefficients:')
+for n = 1:Nt
+    for m = 0:Mx
+        if ~isequal(simplify(a(n+1,m+1)), sym(0))
+            fprintf('a_{%d,%d} = ', n, m);
+            disp(a(n+1,m+1))
+        end
+    end
+end
+
+%% Build truncated symbolic solution psi^[Nt](x,t)
+psi = sym(0);
+for n = 0:Nt
+    for m = 0:Mx
+        psi = psi + a(n+1,m+1)*t^n*x^m;
+    end
+end
+psi = modEp(expand(psi));
+
+disp(' ')
+disp('Truncated symbolic solution psi^[2](x,t) =')
+disp(psi)
+
+%% -------- local function --------
+function out = truncate_ep(expr, ep, Nnil)
+    expr = expand(expr);
+    out = sym(0);
+
+    for k = 0:Nnil-1
+        ck = subs(diff(expr, ep, k), ep, 0) / sym(factorial(k));
+        out = out + ck*ep^k;
+    end
+
+    out = collect(expand(out), ep);
+end
