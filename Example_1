@@ -1,0 +1,84 @@
+%% Example # 6.6: Exact symbolic propagation over S “ Crys with Hermite-structured initial datum
+
+clear; clc;
+
+%% Force exact symbolic output
+sympref('FloatingPointOutput',false);
+
+syms x t y
+I = sym('1i');
+
+%% Temporal and spatial orders
+M2 = sym(4);
+Nt = floor(M2/2);
+
+%% Probabilists' Hermite polynomials H_n(y)
+H = sym(zeros(1,double(M2)+1));
+
+H(1) = sym(1);     % H_0(y)
+H(2) = y;          % H_1(y)
+
+for n = 1:double(M2)-1
+    H(n+2) = expand(y*H(n+1) - sym(n)*H(n));
+end
+
+disp('Probabilists Hermite polynomials:')
+for m2 = 0:double(M2)
+    fprintf('H_%d(y) = ', m2);
+    disp(H(m2+1))
+end
+
+%% Initial datum
+a0 = sym(zeros(1,double(M2)+1));
+psi0 = sym(0);
+
+for m2 = 0:double(M2)
+    a0(m2+1) = simplify(H(m2+1)/sym(factorial(m2)));
+    psi0 = psi0 + a0(m2+1)*x^sym(m2);
+end
+
+psi0 = expand(psi0);
+
+disp('Initial datum psi_0(x):')
+disp(psi0)
+
+disp('Initial coefficients a_{0,m2}:')
+for m2 = 0:double(M2)
+    fprintf('a_{0,%d} = ', m2);
+    disp(a0(m2+1))
+end
+
+%% Symbolic propagation
+a = sym(zeros(double(Nt)+1,double(M2)+1));
+a(1,:) = a0;
+
+psi = psi0;
+
+for m1 = 1:double(Nt)
+    for m2 = 0:double(M2) - 2*m1
+
+        coeff = ...
+            I^sym(m1) * ...
+            sym(factorial(m2+2*m1)) / ...
+            (sym(factorial(m1))*sym(factorial(m2)));
+
+        a(m1+1,m2+1) = simplify(coeff*a0(m2+2*m1+1));
+
+        psi = psi + a(m1+1,m2+1)*t^sym(m1)*x^sym(m2);
+    end
+end
+
+psi = expand(psi);
+
+disp('Nonzero propagated coefficients:')
+for m1 = 1:double(Nt)
+    for m2 = 0:double(M2)
+        if ~isequal(simplify(a(m1+1,m2+1)), sym(0))
+            fprintf('a_{%d,%d} = ', m1, m2);
+            disp(simplify(a(m1+1,m2+1)))
+        end
+    end
+end
+
+disp('Exact symbolic solution psi(x,t):')
+disp(psi)
