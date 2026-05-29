@@ -1,0 +1,74 @@
+%% Example # 6.8: Polynomial Taylor truncation of a non-polynomial datum
+
+clear; clc;
+
+%% Force exact symbolic output
+sympref('FloatingPointOutput', false);
+
+%% Symbols
+syms x t
+I = sym('1i');
+
+%% Parameters
+M2 = 4;
+Nt = floor(M2/2);
+
+%% Initial coefficients for psi_0(x)=1-x^2+x^4/2
+a0 = sym(zeros(1,M2+1));
+
+a0(1) = sym(1);        % a_{0,0}
+a0(3) = sym(-1);       % a_{0,2}
+a0(5) = sym(1)/sym(2); % a_{0,4}
+
+%% Build initial datum
+psi0 = sym(0);
+for m2 = 0:M2
+    psi0 = psi0 + a0(m2+1)*x^m2;
+end
+psi0 = expand(psi0);
+
+disp('Initial datum psi_0(x):')
+disp(psi0)
+
+disp('Nonzero initial coefficients:')
+for m2 = 0:M2
+    if ~isequal(simplify(a0(m2+1)), sym(0))
+        fprintf('a_{0,%d} = ', m2);
+        disp(a0(m2+1))
+    end
+end
+
+%% Symbolic propagation
+
+a = sym(zeros(Nt+1,M2+1));
+a(1,:) = a0;
+
+psi = psi0;
+
+for m1 = 1:Nt
+    for m2 = 0:(M2-2*m1)
+        coeff = I^m1 * sym(factorial(m2+2*m1)) / ...
+               (sym(factorial(m1))*sym(factorial(m2)));
+
+        a(m1+1,m2+1) = simplify(coeff * a0(m2+2*m1+1));
+        psi = psi + a(m1+1,m2+1)*t^m1*x^m2;
+    end
+end
+
+psi = expand(psi);
+
+disp(' ')
+disp('Nonzero propagated coefficients:')
+for m1 = 1:Nt
+    for m2 = 0:M2
+        if ~isequal(simplify(a(m1+1,m2+1)), sym(0))
+            fprintf('a_{%d,%d} = ', m1, m2);
+            disp(simplify(a(m1+1,m2+1)))
+        end
+    end
+end
+
+disp(' ')
+disp('Exact symbolic solution psi(x,t):')
+disp(psi)
+
